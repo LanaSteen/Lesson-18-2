@@ -1,54 +1,54 @@
 ﻿using MiniBank.Models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Text.Json;
 using System.Xml.Serialization;
 
 namespace MiniBank.Repository
 {
-    public class CustomerFileStreamRepository
+    public class AccountFileStreamRepository
     {
         private readonly string _filePath;
         private readonly string _fileType;
-        private List<Customer> _customers;
+        private List<Account> _accounts;
 
-        public CustomerFileStreamRepository(string filePath, string fileType)
+        public AccountFileStreamRepository(string filePath, string fileType)
         {
             _filePath = filePath;
-            _customers = LoadData();
             _fileType = fileType;
+            _accounts = LoadData();
         }
 
-        public List<Customer> GetCustomers() => _customers;
+        public List<Account> GetAccounts() => _accounts;
 
-        public Customer GetCustomer(int id) => _customers.FirstOrDefault(person => person.Id == id);
+        public Account GetAccount(int id) => _accounts.FirstOrDefault(acc => acc.Id == id);
 
-        public void Create(Customer customer)
+        public void Create(Account account)
         {
-            customer.Id = _customers.Any() ? _customers.Max(c => c.Id) + 1 : 1;
-            _customers.Add(customer);
+            account.Id = _accounts.Any() ? _accounts.Max(a => a.Id) + 1 : 1;
+            _accounts.Add(account);
             SaveData();
         }
 
-        public void Update(Customer customer)
+        public void Update(Account account)
         {
-            var index = _customers.FindIndex(c => c.Id == customer.Id);
+            var index = _accounts.FindIndex(a => a.Id == account.Id);
             if (index >= 0)
             {
-                _customers[index] = customer;
+                _accounts[index] = account;
                 SaveData();
             }
         }
 
         public void Delete(int id)
         {
-            var customer = _customers.FirstOrDefault(person => person.Id == id);
-            if (customer != null)
+            var account = _accounts.FirstOrDefault(acc => acc.Id == id);
+            if (account != null)
             {
-                _customers.Remove(customer);
+                _accounts.Remove(account);
                 SaveData();
             }
         }
@@ -64,88 +64,76 @@ namespace MiniBank.Repository
             using (var fileStream = new FileStream(_filePath, FileMode.Create, FileAccess.Write))
             using (var writer = new StreamWriter(fileStream, Encoding.UTF8))
             {
-            
                 if (_fileType == "CSV")
                 {
-                    writer.WriteLine("Id,Name,IdentityNumber,PhoneNumber,Email,Type");
-                    foreach (var customer in _customers)
+                    writer.WriteLine("Id,Iban,Currency,Balance,CustomerId,Name");
+                    foreach (var account in _accounts)
                     {
-                        writer.WriteLine($"{customer.Id},{customer.Name},{customer.IdentityNumber},{customer.PhoneNumber},{customer.Email},{customer.Type}");
+                        writer.WriteLine($"{account.Id},{account.Iban},{account.Currency},{account.Balance},{account.CustomerId},{account.Name}");
                     }
                 }
                 else if (_fileType == "JSON")
                 {
-                    var json = JsonSerializer.Serialize(_customers, new JsonSerializerOptions { WriteIndented = true });
+                    var json = JsonSerializer.Serialize(_accounts, new JsonSerializerOptions { WriteIndented = true });
                     writer.Write(json);
                 }
                 else if (_fileType == "XML")
                 {
-                    
-                    var xmlSerializer = new XmlSerializer(typeof(List<Customer>));
-
+                    var xmlSerializer = new XmlSerializer(typeof(List<Account>));
                     using (var xmlWriter = new StreamWriter(fileStream, Encoding.UTF8))
                     {
-                        xmlSerializer.Serialize(xmlWriter, _customers);
+                        xmlSerializer.Serialize(xmlWriter, _accounts);
                     }
                 }
-
             }
         }
 
-        private List<Customer> LoadData()
+        private List<Account> LoadData()
         {
-           
             if (!File.Exists(_filePath))
-                return new List<Customer>();
+                return new List<Account>();
 
-            var customers = new List<Customer>();
+            var accounts = new List<Account>();
 
-    
             using (var fileStream = new FileStream(_filePath, FileMode.Open, FileAccess.Read))
             using (var reader = new StreamReader(fileStream, Encoding.UTF8))
             {
-
                 if (_fileType == "CSV")
                 {
                     reader.ReadLine();
-
 
                     string line;
                     while ((line = reader.ReadLine()) != null)
                     {
                         var parts = line.Split(',');
-                        var customer = new Customer
+                        var account = new Account
                         {
                             Id = int.Parse(parts[0]),
-                            Name = parts[1],
-                            IdentityNumber = parts[2],
-                            PhoneNumber = parts[3],
-                            Email = parts[4],
-                            Type = Enum.Parse<AccountType>(parts[5])
+                            Iban = parts[1],
+                            Currency = parts[2],
+                            Balance = decimal.Parse(parts[3]),
+                            CustomerId = int.Parse(parts[4]),
+                            Name = parts[5]
                         };
-                        customers.Add(customer);
+                        accounts.Add(account);
                     }
                 }
                 else if (_fileType == "JSON")
                 {
                     var json = reader.ReadToEnd();
-                    customers = JsonSerializer.Deserialize<List<Customer>>(json);
+                    accounts = JsonSerializer.Deserialize<List<Account>>(json);
                 }
                 else if (_fileType == "XML")
                 {
-                    var xmlSerializer = new XmlSerializer(typeof(List<Customer>));
-
+                    var xmlSerializer = new XmlSerializer(typeof(List<Account>));
                     using (var xmlReader = new StreamReader(fileStream, Encoding.UTF8))
                     {
-                        customers = (List<Customer>)xmlSerializer.Deserialize(xmlReader);
+                        accounts = (List<Account>)xmlSerializer.Deserialize(xmlReader);
                     }
                 }
-
             }
 
-            return customers;
+            return accounts;
         }
-
     }
-
 }

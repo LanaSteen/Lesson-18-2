@@ -11,7 +11,7 @@ namespace Lesson_18
 
             string filePath = @"C:\\Users\\l4nst\\source\\repos\\Lesson 18\\MiniBank.Repository\\Data\\Customers.csv";
 
-            var repo = new CustomerFileStreamRepository(filePath);
+            var repo = new CustomerFileStreamRepository(filePath, "CSV");
             var customer1 = new Customer
             {
                 Name = "Someone Someone",

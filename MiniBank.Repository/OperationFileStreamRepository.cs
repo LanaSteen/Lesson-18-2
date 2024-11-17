@@ -1,54 +1,54 @@
 ﻿using MiniBank.Models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Text.Json;
 using System.Xml.Serialization;
 
 namespace MiniBank.Repository
 {
-    public class CustomerFileStreamRepository
+    public class OperationFileStreamRepository
     {
         private readonly string _filePath;
         private readonly string _fileType;
-        private List<Customer> _customers;
+        private List<Operation> _operations;
 
-        public CustomerFileStreamRepository(string filePath, string fileType)
+        public OperationFileStreamRepository(string filePath, string fileType)
         {
             _filePath = filePath;
-            _customers = LoadData();
             _fileType = fileType;
+            _operations = LoadData();
         }
 
-        public List<Customer> GetCustomers() => _customers;
+        public List<Operation> GetOperations() => _operations;
 
-        public Customer GetCustomer(int id) => _customers.FirstOrDefault(person => person.Id == id);
+        public Operation GetOperation(int id) => _operations.FirstOrDefault(op => op.Id == id);
 
-        public void Create(Customer customer)
+        public void Create(Operation operation)
         {
-            customer.Id = _customers.Any() ? _customers.Max(c => c.Id) + 1 : 1;
-            _customers.Add(customer);
+            operation.Id = _operations.Any() ? _operations.Max(o => o.Id) + 1 : 1;
+            _operations.Add(operation);
             SaveData();
         }
 
-        public void Update(Customer customer)
+        public void Update(Operation operation)
         {
-            var index = _customers.FindIndex(c => c.Id == customer.Id);
+            var index = _operations.FindIndex(o => o.Id == operation.Id);
             if (index >= 0)
             {
-                _customers[index] = customer;
+                _operations[index] = operation;
                 SaveData();
             }
         }
 
         public void Delete(int id)
         {
-            var customer = _customers.FirstOrDefault(person => person.Id == id);
-            if (customer != null)
+            var operation = _operations.FirstOrDefault(op => op.Id == id);
+            if (operation != null)
             {
-                _customers.Remove(customer);
+                _operations.Remove(operation);
                 SaveData();
             }
         }
@@ -64,88 +64,77 @@ namespace MiniBank.Repository
             using (var fileStream = new FileStream(_filePath, FileMode.Create, FileAccess.Write))
             using (var writer = new StreamWriter(fileStream, Encoding.UTF8))
             {
-            
                 if (_fileType == "CSV")
                 {
-                    writer.WriteLine("Id,Name,IdentityNumber,PhoneNumber,Email,Type");
-                    foreach (var customer in _customers)
+                    writer.WriteLine("Id,OperationType,Currency,Amount,AccountId,CustomerId,HappendAt");
+                    foreach (var operation in _operations)
                     {
-                        writer.WriteLine($"{customer.Id},{customer.Name},{customer.IdentityNumber},{customer.PhoneNumber},{customer.Email},{customer.Type}");
+                        writer.WriteLine($"{operation.Id},{operation.OperationType},{operation.Currency},{operation.Amount},{operation.AccountId},{operation.CustomerId},{operation.HappendAt:yyyy-MM-dd HH:mm:ss}");
                     }
                 }
                 else if (_fileType == "JSON")
                 {
-                    var json = JsonSerializer.Serialize(_customers, new JsonSerializerOptions { WriteIndented = true });
+                    var json = JsonSerializer.Serialize(_operations, new JsonSerializerOptions { WriteIndented = true });
                     writer.Write(json);
                 }
                 else if (_fileType == "XML")
                 {
-                    
-                    var xmlSerializer = new XmlSerializer(typeof(List<Customer>));
-
+                    var xmlSerializer = new XmlSerializer(typeof(List<Operation>));
                     using (var xmlWriter = new StreamWriter(fileStream, Encoding.UTF8))
                     {
-                        xmlSerializer.Serialize(xmlWriter, _customers);
+                        xmlSerializer.Serialize(xmlWriter, _operations);
                     }
                 }
-
             }
         }
 
-        private List<Customer> LoadData()
+        private List<Operation> LoadData()
         {
-           
             if (!File.Exists(_filePath))
-                return new List<Customer>();
+                return new List<Operation>();
 
-            var customers = new List<Customer>();
+            var operations = new List<Operation>();
 
-    
             using (var fileStream = new FileStream(_filePath, FileMode.Open, FileAccess.Read))
             using (var reader = new StreamReader(fileStream, Encoding.UTF8))
             {
-
                 if (_fileType == "CSV")
                 {
                     reader.ReadLine();
-
 
                     string line;
                     while ((line = reader.ReadLine()) != null)
                     {
                         var parts = line.Split(',');
-                        var customer = new Customer
+                        var operation = new Operation
                         {
                             Id = int.Parse(parts[0]),
-                            Name = parts[1],
-                            IdentityNumber = parts[2],
-                            PhoneNumber = parts[3],
-                            Email = parts[4],
-                            Type = Enum.Parse<AccountType>(parts[5])
+                            OperationType = Enum.Parse<OperationType>(parts[1]),
+                            Currency = parts[2],
+                            Amount = decimal.Parse(parts[3]),
+                            AccountId = int.Parse(parts[4]),
+                            CustomerId = int.Parse(parts[5]),
+                            HappendAt = DateTime.Parse(parts[6])
                         };
-                        customers.Add(customer);
+                        operations.Add(operation);
                     }
                 }
                 else if (_fileType == "JSON")
                 {
                     var json = reader.ReadToEnd();
-                    customers = JsonSerializer.Deserialize<List<Customer>>(json);
+                    operations = JsonSerializer.Deserialize<List<Operation>>(json);
                 }
                 else if (_fileType == "XML")
                 {
-                    var xmlSerializer = new XmlSerializer(typeof(List<Customer>));
-
+                    var xmlSerializer = new XmlSerializer(typeof(List<Operation>));
                     using (var xmlReader = new StreamReader(fileStream, Encoding.UTF8))
                     {
-                        customers = (List<Customer>)xmlSerializer.Deserialize(xmlReader);
+                        operations = (List<Operation>)xmlSerializer.Deserialize(xmlReader);
                     }
                 }
-
             }
 
-            return customers;
+            return operations;
         }
-
     }
-
 }
